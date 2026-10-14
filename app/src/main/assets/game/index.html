@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>KADAYA: THE LAST SHADOW</title>
+    <style>
+        :root {
+            --sal: env(safe-area-inset-left, 0px);
+            --sar: env(safe-area-inset-right, 0px);
+            --sat: env(safe-area-inset-top, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #08090D;
+            color: #FFFFFF;
+        }
+
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* HUD Overlay */
+        #hud-container {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* Player Status Card - Top-Left */
+        .player-status-card {
+            position: absolute;
+            top: calc(8px + var(--sat));
+            left: calc(14px + var(--sal));
+            display: flex;
+            align-items: center;
+            background: linear-gradient(135deg, rgba(14, 16, 26, 0.92), rgba(24, 28, 44, 0.85));
+            border: 1px solid rgba(0, 229, 255, 0.45);
+            border-radius: 10px;
+            padding: 6px 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 12;
+        }
+
+        .ninja-avatar-box {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            background: radial-gradient(circle, #2979FF 0%, #121526 80%);
+            border: 1.5px solid #00E5FF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-right: 10px;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+            flex-shrink: 0;
+        }
+
+        .bars-column {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            width: 145px;
+        }
+
+        .bar-label-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            line-height: 1;
+        }
+
+        .bar-track {
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            border-radius: 3px;
+            transition: width 0.15s ease-out;
+        }
+
+        .hp-fill { background: linear-gradient(90deg, #D50000, #FF1744); box-shadow: 0 0 6px #FF1744; }
+        .stamina-fill { background: linear-gradient(90deg, #FF6D00, #FFD600); box-shadow: 0 0 6px #FFD600; }
+        .chakra-fill { background: linear-gradient(90deg, #0091EA, #00E5FF); box-shadow: 0 0 6px #00E5FF; }
+        .reaper-fill { background: linear-gradient(90deg, #6A1B9A, #AB47BC, #E040FB); box-shadow: 0 0 6px #E040FB; }
+
+        /* Mission Card - Top-Right */
+        .mission-card {
+            position: absolute;
+            top: calc(8px + var(--sat));
+            right: calc(14px + var(--sar));
+            background: linear-gradient(135deg, rgba(14, 16, 26, 0.92), rgba(24, 28, 44, 0.85));
+            border: 1px solid rgba(255, 23, 68, 0.45);
+            border-radius: 10px;
+            padding: 6px 12px;
+            max-width: 220px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            text-align: right;
+            z-index: 12;
+        }
+
+        .mission-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: #00E5FF;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .mission-desc {
+            font-size: 10px;
+            color: #B0BEC5;
+            line-height: 1.25;
+            margin-top: 2px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .enemies-badge {
+            display: inline-block;
+            margin-top: 3px;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 1px 5px;
+            background: rgba(255, 23, 68, 0.25);
+            border: 1px solid #FF1744;
+            border-radius: 3px;
+            color: #FF5252;
+        }
+
+        /* Cinematic Vignette & Color Grading Overlay */
+        #cinematic-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            background: radial-gradient(circle at center, rgba(0,0,0,0) 55%, rgba(6, 8, 14, 0.6) 100%);
+            box-shadow: inset 0 0 45px rgba(0, 0, 0, 0.7);
+        }
+
+        .ultra-graphics-badge {
+            background: linear-gradient(135deg, rgba(0, 229, 255, 0.25), rgba(157, 0, 255, 0.3));
+            border: 1px solid rgba(0, 229, 255, 0.65);
+            border-radius: 14px;
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            color: #E0F7FA;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.45);
+            text-shadow: 0 0 6px #00E5FF;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+            white-space: nowrap;
+        }
+
+        /* Top Action Buttons (Pause & Mute) */
+        .top-action-bar {
+            position: absolute;
+            top: calc(8px + var(--sat));
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            pointer-events: auto;
+            z-index: 12;
+        }
+
+        .icon-circle-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: rgba(20, 24, 38, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #FFFFFF;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            transition: transform 0.08s ease;
+        }
+        .icon-circle-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* Virtual Joystick - Bottom-Left */
+        #joystick-base {
+            position: absolute;
+            bottom: calc(14px + var(--sab));
+            left: calc(20px + var(--sal));
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 229, 255, 0.12) 0%, rgba(14, 18, 30, 0.7) 80%);
+            border: 2px solid rgba(0, 229, 255, 0.45);
+            box-shadow: 0 0 16px rgba(0, 229, 255, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 15;
+        }
+
+        #joystick-thumb {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00E5FF, #0091EA);
+            box-shadow: 0 0 12px rgba(0, 229, 255, 0.8);
+            border: 2px solid #FFFFFF;
+            pointer-events: none;
+            transition: transform 0.05s ease-out;
+        }
+
+        /* Action Buttons Cluster - Bottom-Right */
+        #action-cluster {
+            position: absolute;
+            bottom: calc(12px + var(--sab));
+            right: calc(18px + var(--sar));
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: auto;
+            align-items: flex-end;
+            z-index: 15;
+        }
+
+        .skills-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .skill-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(34, 22, 56, 0.92), rgba(16, 11, 28, 0.92));
+            border: 1.5px solid #AB47BC;
+            color: #FFFFFF;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(171, 71, 188, 0.4);
+            transition: transform 0.08s ease;
+        }
+        .skill-btn:active {
+            transform: scale(0.9);
+            box-shadow: 0 0 14px rgba(171, 71, 188, 0.8);
+        }
+
+        .primary-actions-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .action-btn {
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            transition: transform 0.08s ease;
+        }
+        .action-btn:active {
+            transform: scale(0.92);
+        }
+
+        .btn-attack {
+            width: 62px;
+            height: 62px;
+            background: linear-gradient(135deg, #FF1744, #B71C1C);
+            border: 2.5px solid #FF8A80;
+            font-size: 26px;
+            box-shadow: 0 0 16px rgba(255, 23, 68, 0.7);
+        }
+
+        .btn-dash {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #00E5FF, #0091EA);
+            border: 1.5px solid #E0F7FA;
+            font-size: 18px;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+        }
+
+        .btn-jump {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #FFD600, #FF6D00);
+            border: 1.5px solid #FFF9C4;
+            font-size: 18px;
+            box-shadow: 0 0 10px rgba(255, 214, 0, 0.6);
+        }
+
+        .btn-transform {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #AB47BC, #4A148C);
+            border: 1.5px solid #EA80FC;
+            font-size: 18px;
+            box-shadow: 0 0 12px rgba(171, 71, 188, 0.7);
+        }
+
+        .controls-hint {
+            position: absolute;
+            bottom: calc(8px + var(--sab));
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.55);
+            padding: 2px 8px;
+            border-radius: 4px;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        /* Modals & Dialogs */
+        .game-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            background: radial-gradient(circle, rgba(10, 12, 20, 0.94) 0%, rgba(4, 5, 8, 0.98) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: calc(10px + var(--sat)) calc(18px + var(--sar)) calc(10px + var(--sab)) calc(18px + var(--sal));
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-card {
+            background: linear-gradient(180deg, #151824 0%, #0E1018 100%);
+            border: 2px solid rgba(0, 229, 255, 0.45);
+            border-radius: 14px;
+            padding: 14px 20px;
+            max-width: 680px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.25), 0 10px 30px rgba(0, 0, 0, 0.8);
+            max-height: calc(100vh - 20px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .game-title {
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #FFFFFF, #00E5FF, #FF1744);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        .game-subtitle {
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: #78909C;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .menu-btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .menu-btn {
+            background: linear-gradient(90deg, #0091EA, #00B0FF);
+            color: #FFFFFF;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            padding: 10px 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 145, 234, 0.4);
+            transition: transform 0.08s, box-shadow 0.08s;
+        }
+        .menu-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 8px rgba(0, 229, 255, 0.5);
+        }
+
+        .menu-btn.secondary {
+            background: rgba(30, 36, 54, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: none;
+        }
+
+        .menu-btn.danger {
+            background: linear-gradient(90deg, #D50000, #FF1744);
+            box-shadow: 0 4px 12px rgba(255, 23, 68, 0.4);
+        }
+
+        /* Tabs & Grids */
+        .tabs-header {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+        }
+        .tabs-header::-webkit-scrollbar { display: none; }
+
+        .tab-btn {
+            background: #1A1E2C;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #B0BEC5;
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: #0091EA;
+            color: #FFFFFF;
+            border-color: #00E5FF;
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
+        }
+
+        .scrollable-content {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding-right: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 229, 255, 0.4) transparent;
+        }
+        .scrollable-content::-webkit-scrollbar {
+            width: 4px;
+        }
+        .scrollable-content::-webkit-scrollbar-thumb {
+            background: rgba(0, 229, 255, 0.4);
+            border-radius: 2px;
+        }
+
+        /* Missions List - 2 columns in landscape */
+        .missions-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .mission-item-card {
+            background: #141724;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            padding: 8px 10px;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .mission-item-card.completed {
+            border-color: #76FF03;
+            background: rgba(118, 255, 3, 0.06);
+        }
+
+        .m-card-header { display: flex; align-items: center; gap: 6px; }
+        .m-num { color: #00E5FF; font-weight: 800; font-size: 10px; }
+        .m-title { font-weight: 700; font-size: 11px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .m-diff { font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 3px; }
+        .m-diff.novice { background: #2E7D32; }
+        .m-diff.easy { background: #388E3C; }
+        .m-diff.medium { background: #F57C00; }
+        .m-diff.hard { background: #E64A19; }
+        .m-diff.boss { background: #D50000; }
+
+        .m-desc {
+            font-size: 10px;
+            color: #90A4AE;
+            line-height: 1.2;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .m-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
+        .m-reward { color: #FFD600; font-size: 10px; font-weight: 700; }
+        .m-play-btn {
+            background: #0091EA;
+            border: none;
+            color: #FFFFFF;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .m-play-btn:active { transform: scale(0.95); }
+
+        /* Shop & Upgrades Grid - 3 columns in landscape */
+        .items-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .shop-card, .upgrade-card {
+            background: #141724;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            padding: 8px;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .shop-card.equipped {
+            border-color: #00E5FF;
+            background: rgba(0, 229, 255, 0.08);
+        }
+
+        .shop-icon { font-size: 20px; line-height: 1; }
+        .shop-name, .up-title { font-weight: 800; font-size: 11px; color: #ECEFF1; }
+        .shop-desc, .up-desc {
+            font-size: 9px;
+            color: #90A4AE;
+            flex: 1;
+            line-height: 1.25;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .shop-action, .up-action { margin-top: 4px; }
+
+        .equip-btn, .buy-btn, .up-btn {
+            background: #0091EA;
+            border: none;
+            color: #FFFFFF;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            width: 100%;
+        }
+        .buy-btn { background: #2E7D32; }
+        .equip-btn:active, .buy-btn:active, .up-btn:active { transform: scale(0.95); }
+
+        .status-tag {
+            display: block;
+            text-align: center;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 3px;
+            border-radius: 3px;
+        }
+        .status-tag.equipped { background: #00E5FF; color: #000; }
+        .status-tag.max { background: #455A64; color: #FFF; }
+
+        /* Story Dialogue Card */
+        .dialogue-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+            background: rgba(10, 12, 20, 0.95);
+            border: 1.5px solid #00E5FF;
+            border-radius: 10px;
+            padding: 10px 14px;
+        }
+        .dialogue-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid #00E5FF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            background: #1A1E2C;
+            flex-shrink: 0;
+        }
+        .dialogue-content { flex: 1; }
+        .dialogue-speaker { font-weight: 900; font-size: 13px; color: #00E5FF; margin-bottom: 2px; }
+        .dialogue-text { font-size: 11px; color: #ECEFF1; line-height: 1.35; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container"></div>
+    <div id="cinematic-overlay"></div>
+
+    <!-- HUD Overlay -->
+    <div id="hud-container">
+        <!-- Player Status Bars -->
+        <div class="player-status-card">
+            <div class="ninja-avatar-box">🥷</div>
+            <div class="bars-column">
+                <div class="bar-label-row"><span style="color: #FF5252;">HEALTH</span></div>
+                <div class="bar-track"><div id="hud-hp-bar" class="bar-fill hp-fill"></div></div>
+
+                <div class="bar-label-row"><span style="color: #FFD600;">STAMINA</span></div>
+                <div class="bar-track"><div id="hud-stamina-bar" class="bar-fill stamina-fill"></div></div>
+
+                <div class="bar-label-row"><span style="color: #00E5FF;">CHAKRA</span></div>
+                <div class="bar-track"><div id="hud-chakra-bar" class="bar-fill chakra-fill"></div></div>
+
+                <div class="bar-label-row"><span style="color: #E040FB;">REAPER GAUGE</span></div>
+                <div class="bar-track"><div id="hud-reaper-bar" class="bar-fill reaper-fill"></div></div>
+            </div>
+        </div>
+
+        <div class="top-action-bar">
+            <button id="btn-pause-menu" class="icon-circle-btn ui-interactive">⏸</button>
+            <button id="btn-mute" class="icon-circle-btn ui-interactive">🔊</button>
+            <div id="hud-graphics-badge" class="ultra-graphics-badge ui-interactive" onclick="window.game.toggleGraphicsPreset()">⚡ ULTRA 4K HDR</div>
+        </div>
+
+        <div class="mission-card">
+            <div id="hud-mission-title" class="mission-title">Chapter 1: The Awakening</div>
+            <div id="hud-mission-desc" class="mission-desc">Defeat shadow scouts and reach the objective.</div>
+            <div id="hud-enemies-count" class="enemies-badge">Enemies: 3</div>
+        </div>
+
+        <div class="controls-hint">
+            WASD: Move | Mouse: Look | L-Click: Attack | Space: Jump | E: Dash | Q: Eye Power | F: Reaper Form | R: Susanoo | Tab: Summon
+        </div>
+
+        <div id="joystick-base">
+            <div id="joystick-thumb"></div>
+        </div>
+
+        <div id="action-cluster">
+            <div class="skills-row">
+                <button id="btn-eye-skill" class="skill-btn ui-interactive" title="Eye Power (Q)">👁️</button>
+                <button id="btn-skill-shuriken" class="skill-btn ui-interactive" title="Shuriken (2)">⭐</button>
+                <button id="btn-skill-kenjutsu" class="skill-btn ui-interactive" title="Kenjutsu (3)">🗡️</button>
+                <button id="btn-skill-stealth" class="skill-btn ui-interactive" title="Hidden Jutsu (4)">🌫️</button>
+                <button id="btn-skill-rasengan" class="skill-btn ui-interactive" title="Spiral Sphere (5)">🔮</button>
+            </div>
+            <div class="primary-actions-row">
+                <button id="btn-summon" class="action-btn btn-transform ui-interactive" title="Summon Companion (Tab)">🐉</button>
+                <button id="btn-susanoo" class="action-btn btn-transform ui-interactive" title="Susanoo (R)">🛡️</button>
+                <button id="btn-transform" class="action-btn btn-transform ui-interactive" title="Reaper Form (F)">👹</button>
+                <button id="btn-dash" class="action-btn btn-dash ui-interactive" title="Shadow Dash (E)">💨</button>
+                <button id="btn-jump" class="action-btn btn-jump ui-interactive" title="Jump (Space)">🥷</button>
+                <button id="btn-attack" class="action-btn btn-attack ui-interactive" title="Scythe Attack (Click)">⚔️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Menu Modal -->
+    <div id="modal-main-menu" class="game-modal">
+        <div class="modal-card">
+            <div class="game-title">KADAYA</div>
+            <div class="game-subtitle">THE LAST SHADOW</div>
+            <p style="font-size: 13px; color: #CFD8DC; margin-bottom: 20px; line-height: 1.5; font-style: italic;">
+                "Master the forbidden Grim Reaper transformation, wield ancient Dōjutsu eyes, and conquer 45 missions across 3 supernatural maps to defeat Lord Raizen."
+            </p>
+            <div class="menu-btn-group">
+                <button id="btn-main-start" class="menu-btn">START CAMPAIGN</button>
+                <button id="btn-main-missions" class="menu-btn secondary">CAMPAIGN MISSIONS (45)</button>
+                <button id="btn-main-shop" class="menu-btn secondary">SHINOBI ARSENAL & SHOP</button>
+                <button id="btn-main-upgrades" class="menu-btn secondary">UPGRADES DOJO</button>
+                <button id="btn-main-settings" class="menu-btn secondary">SETTINGS</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Missions Select Modal (All 45 Selectable) -->
+    <div id="modal-missions" class="game-modal" style="display: none;">
+        <div class="modal-card">
+            <div class="game-title" style="font-size: 20px;">CAMPAIGN MISSIONS (45)</div>
+            <div class="tabs-header">
+                <button id="tab-map-1" class="tab-btn active" onclick="window.game.renderMissionsList(1)">MAP 1: BLOOD MOON FOREST (15)</button>
+                <button id="tab-map-2" class="tab-btn" onclick="window.game.renderMissionsList(2)">MAP 2: HAUNTED GRAVEYARD (15)</button>
+                <button id="tab-map-3" class="tab-btn" onclick="window.game.renderMissionsList(3)">MAP 3: BURNING TEMPLE (15)</button>
+            </div>
+            <div class="scrollable-content">
+                <div id="missions-grid" class="missions-list"></div>
+            </div>
+            <button class="menu-btn secondary" onclick="document.getElementById('modal-missions').style.display='none'; document.getElementById('modal-main-menu').style.display='flex';">BACK TO MENU</button>
+        </div>
+    </div>
+
+    <!-- Shop Modal (All items available without paywalls) -->
+    <div id="modal-shop" class="game-modal" style="display: none;">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div class="game-title" style="font-size: 20px; margin: 0;">SHINOBI ARSENAL</div>
+                <div id="shop-ryo-display" style="font-weight: 800; color: #FFD600; font-size: 13px;">Ryo: 1500</div>
+            </div>
+            <div class="tabs-header">
+                <button class="tab-btn active" onclick="window.game.renderShopTab('eyes')">👁️ DŌJUTSU EYES</button>
+                <button class="tab-btn" onclick="window.game.renderShopTab('weapons')">⚔️ WEAPONS</button>
+                <button class="tab-btn" onclick="window.game.renderShopTab('susanoo')">🛡️ SUSANOO</button>
+                <button class="tab-btn" onclick="window.game.renderShopTab('summons')">🐉 SUMMONS (29)</button>
+                <button class="tab-btn" onclick="window.game.renderShopTab('abilities')">🔮 JUTSU</button>
+            </div>
+            <div class="scrollable-content">
+                <div id="shop-items-grid" class="items-grid"></div>
+            </div>
+            <button class="menu-btn secondary" onclick="document.getElementById('modal-shop').style.display='none'; document.getElementById('modal-main-menu').style.display='flex';">BACK TO MENU</button>
+        </div>
+    </div>
+
+    <!-- Upgrades Dojo Modal -->
+    <div id="modal-upgrades" class="game-modal" style="display: none;">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div class="game-title" style="font-size: 20px; margin: 0;">UPGRADES DOJO</div>
+                <div id="upgrades-ryo-display" style="font-weight: 800; color: #FFD600; font-size: 13px;">Ryo: 1500</div>
+            </div>
+            <div class="scrollable-content">
+                <div id="upgrades-grid" class="items-grid"></div>
+            </div>
+            <button class="menu-btn secondary" onclick="document.getElementById('modal-upgrades').style.display='none'; document.getElementById('modal-main-menu').style.display='flex';">BACK TO MENU</button>
+        </div>
+    </div>
+
+    <!-- Story Dialogue Modal -->
+    <div id="modal-dialogue" class="game-modal" style="display: none;">
+        <div class="modal-card" style="max-width: 520px;">
+            <div class="dialogue-card">
+                <div id="dialogue-avatar" class="dialogue-avatar">🥷</div>
+                <div class="dialogue-content">
+                    <div id="dialogue-speaker" class="dialogue-speaker">Kadaya</div>
+                    <div id="dialogue-text" class="dialogue-text">...</div>
+                </div>
+            </div>
+            <button id="btn-dialogue-next" class="menu-btn" style="margin-top: 16px;">CONTINUE (NEXT) ⏩</button>
+        </div>
+    </div>
+
+    <!-- Pause Modal -->
+    <div id="modal-pause" class="game-modal" style="display: none;">
+        <div class="modal-card" style="max-width: 380px;">
+            <div class="game-title" style="font-size: 22px;">GAME PAUSED</div>
+            <div class="menu-btn-group" style="margin-top: 16px;">
+                <button id="btn-resume" class="menu-btn">RESUME</button>
+                <button id="btn-restart" class="menu-btn secondary">RESTART MISSION</button>
+                <button class="menu-btn secondary" onclick="window.game.closeAllModals(); document.getElementById('modal-main-menu').style.display='flex'; window.game.gameState='MENU';">EXIT TO MAIN MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="modal-victory" class="game-modal" style="display: none;">
+        <div class="modal-card" style="max-width: 440px;">
+            <div id="victory-title" class="game-title" style="font-size: 22px; color: #76FF03;">MISSION COMPLETE!</div>
+            <p id="victory-desc" style="font-size: 13px; color: #CFD8DC; margin: 16px 0; line-height: 1.5;"></p>
+            <div class="menu-btn-group">
+                <button id="btn-next-mission" class="menu-btn">NEXT MISSION</button>
+                <button class="menu-btn secondary" onclick="window.game.closeAllModals(); document.getElementById('modal-main-menu').style.display='flex'; window.game.gameState='MENU';">MAIN MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="modal-gameover" class="game-modal" style="display: none;">
+        <div class="modal-card" style="max-width: 420px;">
+            <div class="game-title" style="color: #FF1744; font-size: 24px;">DEFEATED IN BATTLE</div>
+            <p style="font-size: 13px; color: #B0BEC5; margin: 16px 0;">Your chakra was extinguished by the shadow clan.</p>
+            <button id="btn-retry-gameover" class="menu-btn danger">RISE AGAIN & RETRY</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="modal-settings" class="game-modal" style="display: none;">
+        <div class="modal-card" style="max-width: 440px;">
+            <div class="game-title" style="font-size: 20px;">SETTINGS & GRAPHICS</div>
+            <div style="text-align: left; font-size: 12px; color: #B0BEC5; margin: 14px 0; display: flex; flex-direction: column; gap: 10px;">
+                <div><b>Offline Status:</b> 100% Offline Single-Player Ready</div>
+                <div><b>Controls:</b> Keyboard & Mouse / Virtual Touch Stick & Buttons</div>
+                <div><b>Content Access:</b> All 45 Missions & Shop Items Unlocked & Accessible</div>
+
+                <div style="border-top: 1px solid rgba(255,255,255,0.15); padding-top: 10px; margin-top: 4px;">
+                    <div><b>Texture Manager:</b> <span id="settings-tm-status" style="color: #69F0AE;">Async Mipmapping (Zero-Drop Warmup)</span></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0 6px 0;">
+                        <b style="color: #00E5FF; font-size: 13px;">Graphics Quality:</b>
+                        <span id="settings-gfx-status" style="color: #69F0AE; font-size: 11px; font-weight: 800;">⚡ ULTRA (4K HDR)</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="btn-gfx-ultra" class="tab-btn active" style="flex: 1;" onclick="window.game.setGraphicsPreset('ULTRA')">⚡ ULTRA</button>
+                        <button id="btn-gfx-high" class="tab-btn" style="flex: 1;" onclick="window.game.setGraphicsPreset('HIGH')">HIGH</button>
+                        <button id="btn-gfx-medium" class="tab-btn" style="flex: 1;" onclick="window.game.setGraphicsPreset('MEDIUM')">MEDIUM</button>
+                    </div>
+                    <div id="settings-gfx-desc" style="font-size: 10px; color: #80DEEA; margin-top: 6px; line-height: 1.3;">
+                        Max 2048x2048 Soft Shadows, PBR Normal Maps, 3D Grass Foliage, Volumetric God Rays, HDR Bloom & 360° Mountain Skybox.
+                    </div>
+                </div>
+            </div>
+            <button class="menu-btn secondary" onclick="document.getElementById('modal-settings').style.display='none'; document.getElementById('modal-main-menu').style.display='flex';">BACK TO MENU</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="three.min.js"></script>
+    <script src="data.js"></script>
+    <script src="texture_manager.js"></script>
+    <script src="ultra_graphics.js"></script>
+    <script src="audio.js"></script>
+    <script src="character.js"></script>
+    <script src="enemies.js"></script>
+    <script src="world.js"></script>
+    <script src="camera.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

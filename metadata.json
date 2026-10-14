@@ -1,0 +1,6 @@
+{
+  "name": "Kadaya: The Last Shadow",
+  "description": "A 3D third-person dark supernatural ninja action adventure featuring 3 maps, 45 missions, Reaper transformation, Dōjutsu eyes, Susanoo, and 29 summons.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
